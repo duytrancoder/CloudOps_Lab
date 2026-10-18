@@ -124,3 +124,56 @@ Tất cả các lựa chọn công nghệ đều bám sát triết lý: **tối 
 * **Không commit Secrets/Credentials**: Tuyệt đối không lưu file `.env`, SSH Private Key, AWS Access Key hoặc Access Token vào Git repository.
 * **Non-root Container**: Container được cấu hình chạy dưới user thông thường (`appuser`), hạn chế tối đa nguy cơ container escape.
 * **SSH Hardening**: Đăng nhập máy chủ chỉ sử dụng SSH Key-pair, vô hiệu hóa mật khẩu (`PasswordAuthentication no`).
+
+---
+
+## 8. Hướng dẫn Phát triển & Kiểm thử Cục bộ (Local Development & Testing)
+
+### 8.1. Khởi tạo Môi trường Ảo & Cài đặt Dependencies
+
+```bash
+# 1. Tạo virtual environment
+python3 -m venv .venv
+
+# 2. Kích hoạt môi trường ảo
+source .venv/bin/activate
+
+# 3. Cài đặt dependencies (bao gồm dev & test tools)
+pip install -r requirements-dev.txt
+```
+
+### 8.2. Chạy Ứng dụng
+
+* **Chế độ Phát triển (Development Mode)**:
+  ```bash
+  python3 -m app.main
+  # hoặc dùng Flask CLI:
+  FLASK_APP=app.main:app flask run --port 8000
+  ```
+
+* **Chế độ Production-like với WSGI Gunicorn (ADR 001)**:
+  ```bash
+  gunicorn --bind 0.0.0.0:8000 --workers 2 app.main:app
+  ```
+
+### 8.3. Danh sách Endpoints & Ý nghĩa Vận hành
+
+| Phương thức | Endpoint | Ý nghĩa vận hành & Probe Type | Status Code |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Trả về thông tin metadata dịch vụ, phiên bản và trạng thái | `200 OK` |
+| `GET` | `/health/live` | **Liveness probe**: Kiểm tra tiến trình web server còn sống, không deadlock | `200 OK` |
+| `GET` | `/health/ready` | **Readiness probe**: Kiểm tra dịch vụ sẵn sàng đón nhận request (dùng cho Rollback trigger) | `200 OK` |
+| `GET` | `/health` | **Composite probe**: Báo cáo tổng hợp sức khỏe (kết hợp cả liveness & readiness) | `200 OK` |
+
+### 8.4. Chạy Kiểm thử & Kiểm tra Chất lượng Code
+
+* **Chạy toàn bộ Pytest test suite**:
+  ```bash
+  pytest
+  ```
+
+* **Kiểm tra cú pháp & chuẩn format với Ruff**:
+  ```bash
+  ruff check app tests
+  ```
+
