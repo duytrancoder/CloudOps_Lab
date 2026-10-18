@@ -1,7 +1,10 @@
 """CloudOps Lab Sample Application Package."""
 
-__version__ = "1.0.0"
+from app.config import AppConfig
 
-from app.main import create_app
+# Package-level version is synchronized directly with config
+__version__ = AppConfig.from_env().version
+
+from app.main import create_app  # noqa: E402
 
 __all__ = ["create_app", "__version__"]

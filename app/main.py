@@ -3,9 +3,10 @@
 import logging
 import sys
 import time
-from typing import Optional
+from typing import Any, Dict, Optional, Tuple
 
 from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 from app.config import AppConfig
 
@@ -29,8 +30,30 @@ def configure_logging(log_level_name: str) -> None:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    # Prevent propagation to root logger to avoid duplicated logs
-    logger.propagate = False
+    # Allow propagation so test fixtures (like pytest caplog) can inspect records
+    logger.propagate = True
+
+
+def check_readiness(application: Flask) -> Tuple[bool, Dict[str, Any]]:
+    """Evaluate readiness of the service and any registered dependencies.
+
+    Designed for clean extensibility: future dependencies (database, cache, etc.)
+    can be registered under application.config['READINESS_CHECKS'] without
+    rewriting the route handlers.
+    """
+    checks: Dict[str, Any] = {
+        "initialization": "ready",
+    }
+
+    # Evaluate any dynamic readiness checks registered in app configuration
+    custom_checks = application.config.get("READINESS_CHECKS", [])
+    for check_fn in custom_checks:
+        name, is_ok, details = check_fn()
+        checks[name] = details
+        if not is_ok:
+            return False, checks
+
+    return True, checks
 
 
 def create_app(config: Optional[AppConfig] = None) -> Flask:
@@ -50,6 +73,10 @@ def create_app(config: Optional[AppConfig] = None) -> Flask:
         app_config.environment,
         app_config.log_level,
     )
+
+    # Log any fallback warnings detected during config parsing
+    for warning_msg in app_config.warnings:
+        logger.warning("Configuration fallback: %s", warning_msg)
 
     @app.before_request
     def log_request_info() -> None:
@@ -95,32 +122,37 @@ def create_app(config: Optional[AppConfig] = None) -> Flask:
     def health_ready():
         """Readiness probe.
 
-        Verifies that the service is ready to accept user requests.
-        At this stage, there are no mandatory external dependencies (e.g. database),
-        so readiness confirms internal initialization is complete.
+        Verifies that the service is ready to accept incoming traffic.
+        Returns 200 OK when ready, 503 Service Unavailable when degraded/failing.
         """
+        is_ready, details = check_readiness(app)
+        status_code = 200 if is_ready else 503
         return jsonify(
             {
-                "status": "ready",
+                "status": "ready" if is_ready else "not_ready",
+                "checks": details,
                 "timestamp": time.time(),
             }
-        ), 200
+        ), status_code
 
     @app.route("/health", methods=["GET"])
     def health_composite():
         """Composite health check endpoint.
 
-        Provides an aggregated status report combining liveness and readiness states.
+        Aggregates liveness and readiness states into an overarching health report.
         """
+        is_ready, details = check_readiness(app)
+        status_code = 200 if is_ready else 503
         return jsonify(
             {
-                "status": "healthy",
+                "status": "healthy" if is_ready else "degraded",
                 "version": app_config.version,
                 "liveness": "alive",
-                "readiness": "ready",
+                "readiness": "ready" if is_ready else "not_ready",
+                "checks": details,
                 "timestamp": time.time(),
             }
-        ), 200
+        ), status_code
 
     @app.errorhandler(404)
     def not_found_error(error):
@@ -134,13 +166,22 @@ def create_app(config: Optional[AppConfig] = None) -> Flask:
             }
         ), 404
 
-    @app.errorhandler(500)
-    def internal_error(error):
-        """Standardized JSON response for 500 Internal Server Error."""
+    @app.errorhandler(Exception)
+    def handle_unhandled_exception(error):
+        """Standardized JSON response for unhandled exceptions (500).
+
+        Preserves full traceback in internal logger for debugging/incident triage,
+        while returning a sanitized, secret-free JSON response to the client.
+        """
+        # Pass standard HTTP exceptions (like 404) to their respective handlers
+        if isinstance(error, HTTPException):
+            return error
+
         logger.error(
             "Internal server error encountered on %s %s",
             request.method,
             request.path,
+            exc_info=error,
         )
         return jsonify(
             {
