@@ -177,3 +177,55 @@ pip install -r requirements-dev.txt
   ruff check app tests
   ```
 
+---
+
+## 9. Đóng gói & Chạy Container Cục bộ (Docker Local Run — Step 03)
+
+### 9.1. Build Docker Image
+
+```bash
+docker build -t cloudops-lab:step-03 .
+```
+
+### 9.2. Khởi chạy Container (với Non-root User & Gunicorn)
+
+```bash
+docker run -d \
+  --name cloudops-lab-app \
+  -p 8000:8000 \
+  -e APP_ENV=production \
+  -e APP_VERSION=1.0.0 \
+  cloudops-lab:step-03
+```
+
+### 9.3. Kiểm tra Trạng thái Sức khỏe & Xác thực Non-root
+
+* **Kiểm tra trạng thái Container & Healthcheck**:
+  ```bash
+  docker ps --filter "name=cloudops-lab-app"
+  # Xem chi tiết log của health probe:
+  docker inspect --format '{{json .State.Health}}' cloudops-lab-app | jq .
+  ```
+
+* **Xác thực User thực tế bên trong container (Bảo mật Non-root)**:
+  ```bash
+  docker exec cloudops-lab-app id
+  # Kết quả mong đợi: uid=1001(appuser) gid=1001(appuser) groups=1001(appuser)
+  ```
+
+* **Xem Logs hệ thống**:
+  ```bash
+  docker logs -f cloudops-lab-app
+  ```
+
+### 9.4. Dừng và Dọn dẹp Container
+
+```bash
+# Dừng container an toàn (Gunicorn đón nhận SIGTERM để graceful shutdown)
+docker stop cloudops-lab-app
+
+# Xóa container sau khi kiểm thử
+docker rm cloudops-lab-app
+```
+
+
