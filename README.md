@@ -246,5 +246,46 @@ ssh -i ~/.ssh/id_ed25519_cloudops -o IdentitiesOnly=yes deployer@127.0.0.1
 
 > Chi tiết runbook chẩn đoán mạng, rủi ro bind cổng và hướng dẫn khắc phục xem tại: [docs/runbooks/ssh-access.md](docs/runbooks/ssh-access.md)
 
+---
+
+## 11. Triển khai Thủ công bằng Docker Compose (Step 05 — Local Deployment)
+
+### 11.1. Lệnh Khởi động Dịch vụ
+
+```bash
+# Xác thực cấu hình và build/chạy ứng dụng
+docker compose config
+docker compose up -d --build
+```
+
+### 11.2. Kiểm tra Vận hành & Sức khỏe Dịch vụ
+
+```bash
+# Kiểm tra trạng thái container và cổng bind (127.0.0.1:8000)
+docker compose ps
+ss -tlnp | grep :8000
+
+# Gọi các probes kiểm chứng
+curl -s -i http://127.0.0.1:8000/health
+curl -s -i http://127.0.0.1:8000/health/ready
+
+# Xem logs container
+docker compose logs --tail=100 app
+```
+
+### 11.3. Quản lý Vòng đời & Dọn dẹp
+
+```bash
+# Tạm dừng và tiếp tục
+docker compose stop app
+docker compose start app
+
+# Dọn dẹp dịch vụ
+docker compose down
+```
+
+> Chi tiết phân biệt các lệnh vòng đời container (`stop`, `start`, `restart`, `up -d --build`, `down`) và 2 kịch bản xử lý sự cố (xung đột cổng, lỗi schema) xem tại: [docs/runbooks/manual-deployment.md](docs/runbooks/manual-deployment.md)
+
+
 
 

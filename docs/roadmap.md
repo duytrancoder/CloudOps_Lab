@@ -51,12 +51,20 @@ Lộ trình này chia nhỏ toàn bộ quá trình xây dựng, triển khai và
   3. Khảo sát cổng mạng (`22`, `5432`, `6379`) và bảo vệ các chain của Docker, không can thiệp UFW bừa bãi.
 
 
-#### Step 05: Deploy Manually
-* **Phân loại**: Bắt buộc.
-* **Mục tiêu**: Tự tay triển khai ứng dụng lên server Linux: ban đầu bằng lệnh `docker run`, sau đó chuyển sang `compose.yaml` để hiểu rõ sự khác biệt.
-* **Đầu vào**: Docker image đã build, server Linux đã sẵn sàng từ Step 04.
-* **Đầu ra**: File `compose.yaml` trên server, container chạy nền (`-d`).
-* **Tiêu chí nghiệm thu**: Gọi `curl http://<SERVER_IP>:8000/health/ready` từ máy client trả về 200 OK; kiểm tra `docker compose ps` thấy trạng thái `Up (healthy)`.
+#### Step 05: Manual Deployment with Docker Compose
+* **Phân loại**: Bắt buộc (P0).
+* **Mục tiêu**: Tự tay triển khai và làm chủ vòng đời ứng dụng bằng Docker Compose (`compose.yaml`), kiểm tra health probes, phân biệt các lệnh lifecycle và thực hành xử lý sự cố.
+* **Đầu vào**: Dockerfile tối ưu từ Step 03, port 8000 khả dụng.
+* **Đầu ra**: 
+  * File `compose.yaml` (bind `127.0.0.1:8000:8000`, non-root, restart: `unless-stopped`).
+  * File tài liệu `docs/runbooks/manual-deployment.md`.
+* **Tiêu chí nghiệm thu (Đã kiểm chứng)**:
+  1. Triển khai bằng `docker compose up -d --build` thành công, container đạt trạng thái `Up (healthy)`.
+  2. Toàn bộ 4 endpoints (`/`, `/health/live`, `/health/ready`, `/health`) trả về `200 OK`.
+  3. Cổng được khóa an toàn trên `127.0.0.1:8000`, tiến trình chạy dưới user `appuser` (UID 1001).
+  4. Thực nghiệm vòng đời `stop` $\rightarrow$ `start` phục hồi thành công.
+  5. Diễn tập và xử lý 2 sự cố thực tế: Xung đột cổng và lỗi cú pháp schema Compose.
+
 
 ---
 
