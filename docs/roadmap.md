@@ -37,12 +37,19 @@ Lộ trình này chia nhỏ toàn bộ quá trình xây dựng, triển khai và
 * **Đầu ra**: `Dockerfile`, `.dockerignore`, `compose.yaml` (cục bộ), Docker `HEALTHCHECK` directive.
 * **Tiêu chí nghiệm thu**: Chạy container cục bộ, kiểm tra `whoami` trong container không phải `root`; `docker inspect` hiển thị trạng thái `healthy`; Gunicorn xử lý request ổn định.
 
-#### Step 04: Linux & SSH Lab
-* **Phân loại**: Bắt buộc.
-* **Mục tiêu**: Chuẩn bị môi trường máy chủ Linux (Ubuntu VM cục bộ hoặc cloud instance) với chuẩn bảo mật cơ bản.
-* **Đầu vào**: Máy chủ Ubuntu trắng.
-* **Đầu ra**: Tạo deploy-user chuyên dụng, cấu hình SSH Key-based authentication (vô hiệu hóa SSH password), cài đặt Docker Engine & Docker Compose plugin, cấu hình Firewall (UFW: mở 22, 80/8000).
-* **Tiêu chí nghiệm thu**: SSH vào server bằng key thành công mà không cần password; deploy-user chạy được Docker mà không cần quyền `root` toàn máy; ufw chặn các port không mong muốn.
+#### Step 04: Linux & SSH Operations (Arch Linux Local Lab)
+* **Phân loại**: Bắt buộc (P0).
+* **Mục tiêu**: Nắm vững quản trị Linux cơ bản, cấu hình truy cập từ xa an toàn qua SSH key, phân quyền người dùng và kiểm soát rủi ro mạng/firewall.
+* **Đầu vào**: Máy chủ Arch Linux hiện tại, OpenSSH server `10.6p1`.
+* **Đầu ra**: 
+  * Cặp khóa riêng `~/.ssh/id_ed25519_cloudops` (cô lập với khóa cá nhân GitHub).
+  * Tài khoản `deployer` (UID/GID 1001, không sudo, không docker, không wheel).
+  * File tài liệu `docs/runbooks/ssh-access.md`.
+* **Tiêu chí nghiệm thu (Đã kiểm chứng)**:
+  1. SSH vào `deployer@127.0.0.1` bằng khóa riêng thành công 100%.
+  2. Cơ chế cô lập hoạt động: `deployer` bị chặn (`Permission denied`) khi đọc thư mục người dùng khác.
+  3. Khảo sát cổng mạng (`22`, `5432`, `6379`) và bảo vệ các chain của Docker, không can thiệp UFW bừa bãi.
+
 
 #### Step 05: Deploy Manually
 * **Phân loại**: Bắt buộc.

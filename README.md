@@ -228,4 +228,23 @@ docker stop cloudops-lab-app
 docker rm cloudops-lab-app
 ```
 
+---
+
+## 10. Quản trị Linux & Truy cập SSH An toàn (Step 04 — Local Lab)
+
+### 10.1. Cặp Khóa Riêng & Định danh Tài khoản
+* Khóa SSH riêng của Lab: `~/.ssh/id_ed25519_cloudops` (cô lập 100% với khóa GitHub).
+* Tài khoản vận hành: `deployer` (UID/GID 1001, không có quyền sudo, không thuộc nhóm docker).
+* Cơ chế cô lập: `deployer` bị chặn hoàn toàn khi truy cập thư mục người dùng khác (`Permission denied`).
+
+### 10.2. Lệnh Kết nối SSH Kiểm chứng
+
+```bash
+# Kết nối an toàn chỉ định duy nhất khóa lab
+ssh -i ~/.ssh/id_ed25519_cloudops -o IdentitiesOnly=yes deployer@127.0.0.1
+```
+
+> Chi tiết runbook chẩn đoán mạng, rủi ro bind cổng và hướng dẫn khắc phục xem tại: [docs/runbooks/ssh-access.md](docs/runbooks/ssh-access.md)
+
+
 
